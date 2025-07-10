@@ -96,6 +96,7 @@
                         <option value="Synth">Synth</option>
                         <option value="Piano">Piyano</option>
                         <option value="Violin">Keman</option>
+                        <option value="AcousticGuitar">Akustik Gitar</option>
                     </select>
                 </div>
 
@@ -189,7 +190,7 @@
         // --- Genel Değişkenler ve Sabitler ---
         let img;
         let capture;
-        let synth, kickSynth, violinChorus;
+        let synth, kickSynth;
         let p5Instance;
         let html5QrCode;
         let transportLoop;
@@ -259,42 +260,68 @@
             const instrumentButtons = [autoScanButton, manualScanButton];
             const setButtonsDisabled = (disabled) => instrumentButtons.forEach(btn => { if(btn) btn.disabled = disabled; });
             
-            instrumentLabel.innerText = 'Enstrüman (Yükleniyor...)';
+            instrumentLabel.innerText = `Enstrüman (${instrumentType} oluşturuluyor...)`;
             setButtonsDisabled(true); 
             
+            // Müzikal aktiviteyi durdur ve temizle
+            scanning = false;
+            if (transportLoop) {
+                transportLoop.stop(0).dispose();
+                transportLoop = null;
+            }
+            if (Tone.Transport.state === 'started') {
+                Tone.Transport.stop();
+            }
+            Tone.Transport.cancel();
+            autoScanButton.innerText = "Otomatik Bestelet";
+
             const reverb = new Tone.Reverb(0.8).toDestination();
-            if (synth) await synth.dispose();
-            if (violinChorus) await violinChorus.dispose();
+            if (synth) {
+                if (typeof synth.releaseAll === 'function') {
+                    synth.releaseAll();
+                }
+                await synth.dispose();
+            }
 
             if (!kickSynth) {
                  kickSynth = new Tone.MembraneSynth({ pitchDecay: 0.01, octaves: 6, envelope: { attack: 0.001, decay: 0.2, sustain: 0.01 } }).toDestination();
             }
             
-            if (instrumentType === 'Piano') {
-                synth = new Tone.Sampler({
-                    urls: { C4: "C4.mp3", G4: "G4.mp3", A4: "A4.mp3", E4: "E4.mp3", D4: "D4.mp3", C5: "C5.mp3" },
-                    baseUrl: "https://tonejs.github.io/audio/casio/",
-                }).connect(reverb);
-                await Tone.loaded(); // Piyano seslerinin yüklenmesini bekle
-            } else if (instrumentType === 'Violin') {
-                violinChorus = new Tone.Chorus(4, 2.5, 0.5).toDestination().start();
-                synth = new Tone.AMSynth({
-                    harmonicity: 1.2,
-                    envelope: { attack: 0.05, decay: 1, sustain: 0.4, release: 1.5 },
-                    modulationEnvelope: { attack: 0.2, decay: 0.3, sustain: 0.8, release: 1.5 }
-                }).connect(violinChorus);
-            } else { // Varsayılan Synth
-                synth = new Tone.FMSynth({
-                    harmonicity: 3.01,
-                    modulationIndex: 14,
-                    envelope: { attack: 0.01, decay: 0.2 },
-                    modulationEnvelope: { attack: 0.01, decay: 0.5 }
-                }).connect(reverb);
+            try {
+                if (instrumentType === 'Piano') {
+                    synth = new Tone.PolySynth(Tone.FMSynth, {
+                        volume: -12,
+                        envelope: { attack: 0.01, decay: 1, sustain: 0.1, release: 0.8 },
+                        harmonicity: 3,
+                        modulationIndex: 2
+                    }).connect(reverb);
+                } else if (instrumentType === 'Violin') {
+                    synth = new Tone.AMSynth({
+                        harmonicity: 1.2,
+                        envelope: { attack: 0.05, decay: 1, sustain: 0.4, release: 1.5 },
+                        modulationEnvelope: { attack: 0.2, decay: 0.3, sustain: 0.8, release: 1.5 },
+                        vibrato: 5
+                    }).toDestination();
+                } else if (instrumentType === 'AcousticGuitar') {
+                    synth = new Tone.PluckSynth({
+                        attackNoise: 1,
+                        dampening: 4000,
+                        resonance: 0.9
+                    }).toDestination();
+                } else { // Default Synth
+                    synth = new Tone.FMSynth({
+                        harmonicity: 3.01,
+                        modulationIndex: 14,
+                        envelope: { attack: 0.01, decay: 0.2 },
+                        modulationEnvelope: { attack: 0.01, decay: 0.5 }
+                    }).connect(reverb);
+                }
+                instrumentLabel.innerText = 'Enstrüman';
+                setButtonsDisabled(false);
+            } catch (error) {
+                console.error("Enstrüman oluşturulamadı:", error);
+                showModal("Enstrüman oluşturulurken bir hata oluştu. Lütfen tekrar deneyin.");
             }
-            
-            console.log(`${instrumentType} sesleri yüklendi.`);
-            instrumentLabel.innerText = 'Enstrüman';
-            setButtonsDisabled(false);
         }
 
         const sketch = (p, data) => {
@@ -839,15 +866,34 @@
                 };
 
                 if (instrumentChoice === 'Piano') {
-                    recSynth = new Tone.Sampler({
-                        urls: { C4: "C4.mp3", G4: "G4.mp3", A4: "A4.mp3", E4: "E4.mp3", D4: "D4.mp3", C5: "C5.mp3" },
-                        baseUrl: "https://tonejs.github.io/audio/casio/",
-                        onload: playRecording,
+                    recSynth = new Tone.PolySynth(Tone.FMSynth, {
+                        volume: -12,
+                        envelope: { attack: 0.01, decay: 1, sustain: 0.1, release: 0.8 },
+                        harmonicity: 3,
+                        modulationIndex: 2
+                    }).connect(recorder);
+                } else if (instrumentChoice === 'Violin') {
+                    recSynth = new Tone.AMSynth({
+                        harmonicity: 1.2,
+                        envelope: { attack: 0.05, decay: 1, sustain: 0.4, release: 1.5 },
+                        modulationEnvelope: { attack: 0.2, decay: 0.3, sustain: 0.8, release: 1.5 },
+                        vibrato: 5
+                    }).connect(recorder);
+                } else if (instrumentChoice === 'AcousticGuitar') {
+                     recSynth = new Tone.PluckSynth({
+                        attackNoise: 1,
+                        dampening: 4000,
+                        resonance: 0.9
                     }).connect(recorder);
                 } else {
-                    recSynth = new (synth.constructor)().connect(recorder);
-                    playRecording();
+                    recSynth = new Tone.FMSynth({
+                        harmonicity: 3.01,
+                        modulationIndex: 14,
+                        envelope: { attack: 0.01, decay: 0.2 },
+                        modulationEnvelope: { attack: 0.01, decay: 0.5 }
+                    }).connect(recorder);
                 }
+                playRecording();
 
             } catch (error) {
                 console.error("Kayıt hatası:", error);
