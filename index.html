@@ -25,11 +25,32 @@
             font-family: 'Inter', sans-serif;
             -webkit-font-smoothing: antialiased;
             -moz-osx-font-smoothing: grayscale;
+            background: #0f0c29;
+            background: -webkit-linear-gradient(to right, #24243e, #302b63, #0f0c29);
+            background: linear-gradient(to right, #24243e, #302b63, #0f0c29);
+            background-size: 400% 400%;
+            animation: gradientBG 15s ease infinite;
+        }
+
+        @keyframes gradientBG {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
         }
         
+        /* Glassmorphism efekti için özel sınıf */
+        .glass-panel {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            border-radius: 1rem;
+            border: 1px solid rgba(255, 255, 255, 0.18);
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+        }
+
         /* Ana tuval için özel gölge */
         main {
-            box-shadow: 0 0 25px rgba(236, 72, 153, 0.4);
+            box-shadow: 0 0 35px rgba(236, 72, 153, 0.5);
         }
 
         /* Nota defteri için özel kaydırma çubuğu */
@@ -46,27 +67,32 @@
         }
     </style>
 </head>
-<body class="bg-gray-900 text-gray-200 flex flex-col items-center min-h-screen p-4 transition-colors duration-500">
+<body class="text-gray-200 flex flex-col items-center min-h-screen p-4 transition-colors duration-500">
 
     <div class="w-full max-w-4xl mx-auto">
         <header class="text-center mb-6">
-            <h1 class="text-4xl sm:text-5xl font-bold text-white tracking-tight">
+            <h1 class="text-4xl sm:text-5xl font-bold text-white tracking-tight" style="text-shadow: 0 0 15px rgba(236, 72, 153, 0.7);">
                 <span class="text-pink-500">Piksen</span>foni
             </h1>
             <p class="text-gray-400 mt-2 text-lg">İnteraktif Besteci</p>
         </header>
+        
+        <!-- Giriş Açıklaması -->
+        <div id="intro-section" data-tour-text="Piksenfoni'ye hoş geldiniz! Bu interaktif besteci ile resimlerinizi ve renkleri müziğe dönüştürebilirsiniz. Başlamak için aşağıdaki seçeneklerden birini kullanın." class="p-6 mb-6 text-center text-lg text-gray-300 glass-panel">
+            Piksenfoni'ye hoş geldiniz! Bu interaktif besteci ile resimlerinizi ve renkleri müziğe dönüştürebilirsiniz. Başlamak için aşağıdaki seçeneklerden birini kullanın.
+        </div>
 
         <!-- Başlangıç Kontrolleri -->
-        <div id="initial-controls" class="flex flex-col sm:flex-row items-center justify-center gap-4 p-6 bg-gray-800/50 backdrop-blur-sm border border-gray-700 rounded-xl">
-            <button id="upload-button" class="w-full sm:w-auto flex items-center justify-center gap-2 bg-pink-600 hover:bg-pink-700 text-white font-bold py-3 px-6 rounded-lg shadow-md transition-all duration-300 transform hover:scale-105">
+        <div id="initial-controls" data-tour-text="Buradan pikselli bir resim yükleyebilir, normal bir resmi pikselleştirebilir veya beste yapmak için kameranızı kullanabilirsiniz." class="flex flex-col sm:flex-row items-center justify-center gap-4 p-6 glass-panel">
+            <button id="upload-button" data-tour-text="Mevcut bir pikselli resmi yüklemek için buraya tıklayın." class="w-full sm:w-auto flex items-center justify-center gap-2 bg-pink-600 hover:bg-pink-700 text-white font-bold py-3 px-6 rounded-lg shadow-lg hover:shadow-pink-500/50 transition-all duration-300 transform hover:scale-105">
                 <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>
                 Pikselli Resim Yükle
             </button>
-            <button id="pixelate-button" class="w-full sm:w-auto flex items-center justify-center gap-2 bg-purple-600 hover:bg-purple-700 text-white font-bold py-3 px-6 rounded-lg shadow-md transition-all duration-300 transform hover:scale-105">
+            <button id="pixelate-button" data-tour-text="Normal bir fotoğrafı pikselli bir sanat eserine dönüştürmek için burayı kullanın." class="w-full sm:w-auto flex items-center justify-center gap-2 bg-purple-600 hover:bg-purple-700 text-white font-bold py-3 px-6 rounded-lg shadow-lg hover:shadow-purple-500/50 transition-all duration-300 transform hover:scale-105">
                 <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-wand-2"><path d="m21.64 3.64-1.28-1.28a1.21 1.21 0 0 0-1.72 0L2.36 18.64a1.21 1.21 0 0 0 0 1.72l1.28 1.28a1.2 1.2 0 0 0 1.72 0L21.64 5.36a1.2 1.2 0 0 0 0-1.72Z"/><path d="m14 7 3 3"/><path d="M5 6v4"/><path d="M19 14v4"/><path d="M10 2v2"/><path d="M7 8H3"/><path d="M21 16h-4"/><path d="M11 3H9"/></svg>
                 Resmi Pikselleştir
             </button>
-            <button id="camera-button" class="w-full sm:w-auto flex items-center justify-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-6 rounded-lg shadow-md transition-all duration-300 transform hover:scale-105">
+            <button id="camera-button" data-tour-text="Canlı olarak beste yapmak için kameranızı açın." class="w-full sm:w-auto flex items-center justify-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-6 rounded-lg shadow-lg hover:shadow-indigo-500/50 transition-all duration-300 transform hover:scale-105">
                 <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path><circle cx="12" cy="13" r="4"></circle></svg>
                 Kamerayı Kullan
             </button>
@@ -75,24 +101,25 @@
         </div>
 
         <!-- p5.js için Ana Tuval -->
-        <main id="main" style="display: none;" class="w-full max-w-2xl mx-auto aspect-video border-2 border-pink-500 rounded-xl overflow-hidden mt-6 relative line-height-0"></main>
+        <main id="main" style="display: none;" class="w-full max-w-2xl mx-auto aspect-video border-2 border-pink-500 rounded-xl overflow-hidden mt-6 relative line-height-0" data-tour-text="Burası sizin tuvaliniz. Yüklediğiniz resim veya kamera görüntüsü burada müziğe dönüşecek."></main>
         
         <!-- Nota Eğitimi Bölümü -->
-        <div id="training-section" style="display: none;" class="w-full max-w-2xl mx-auto mt-6 bg-gray-800/50 backdrop-blur-sm border border-gray-700 rounded-xl p-4">
-            <h2 class="text-xl font-bold mb-3 text-white text-center">Nota Renk Pikseli Eğitimi</h2>
-            <div id="training-boxes" class="flex flex-wrap justify-center gap-3">
+        <div id="training-section" style="display: none;" class="w-full max-w-2xl mx-auto mt-6 glass-panel p-4" data-tour-text="Bu bölümde, renklerin hangi notalara karşılık geldiğini keşfedebilirsiniz. Fare ile renklerin üzerine gelerek hem notayı dinleyin hem de ismini duyun.">
+            <h2 class="text-xl font-bold mb-2 text-white text-center">Nota Renk Pikseli Eğitimi</h2>
+            <p class="text-center text-gray-300 mb-4">Renklerin üzerine gelerek notaları ve isimlerini dinleyebilirsiniz.</p>
+            <div id="training-boxes" class="flex flex-wrap justify-center gap-4">
                 <!-- Renk kutucukları buraya dinamik olarak eklenecek -->
             </div>
         </div>
 
         <!-- QR Kod Okuyucu Alanı -->
-        <div id="qr-reader-container" style="display: none;" class="text-center mt-6 p-4 bg-gray-800 rounded-xl w-full max-w-sm mx-auto">
+        <div id="qr-reader-container" style="display: none;" class="text-center mt-6 p-4 glass-panel w-full max-w-sm mx-auto">
             <div id="qr-reader" class="w-full rounded-lg overflow-hidden border-2 border-gray-600"></div>
             <button id="stop-qr-button" class="mt-4 bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-lg transition-colors">QR Okumayı Durdur</button>
         </div>
 
         <!-- Ana Kontroller (Enstrümanlar, Tarama, vb.) -->
-        <div id="controls" style="display: none;" class="w-full max-w-4xl mt-6 p-4 bg-gray-800/50 backdrop-blur-sm border border-gray-700 rounded-xl">
+        <div id="controls" style="display: none;" class="w-full max-w-4xl mt-6 p-4 glass-panel" data-tour-text="Buradan enstrüman seçebilir, piksel boyutunu ve tempo'yu ayarlayabilir, bestenizi otomatik veya manuel olarak çalabilirsiniz.">
             <div class="flex justify-start mb-4">
                  <button id="back-button" class="flex items-center justify-center gap-2 bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded-lg shadow-md transition-all duration-300">
                     &larr; Geri
@@ -118,11 +145,8 @@
                         <input type="range" id="pixel-size-slider" min="10" max="50" value="20" step="2" class="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer accent-pink-500" />
                     </div>
                      <div class="flex flex-col gap-2">
-                        <label for="tempo-controls" class="font-semibold text-gray-300">Tempo: <span id="tempo-display">100</span> BPM</label>
-                        <div id="tempo-controls" class="flex items-center gap-2">
-                           <button id="slow-down-button" class="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg transition-colors">- Yavaşlat</button>
-                           <button id="speed-up-button" class="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg transition-colors">+ Hızlandır</button>
-                        </div>
+                        <label for="tempo-slider" class="font-semibold text-gray-300">Tempo: <span id="tempo-display">100</span> BPM</label>
+                        <input type="range" id="tempo-slider" min="40" max="220" value="100" step="1" class="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer accent-blue-500" />
                     </div>
                 </div>
                 
@@ -151,7 +175,7 @@
         </div>
         
         <!-- Canlı Nota Göstergesi -->
-        <div id="live-indicator" style="display: none;" class="w-full max-w-2xl mx-auto mt-4 grid grid-cols-1 sm:grid-cols-2 gap-4 p-3 bg-gray-800/50 rounded-xl border border-gray-700">
+        <div id="live-indicator" style="display: none;" class="w-full max-w-2xl mx-auto mt-4 grid grid-cols-1 sm:grid-cols-2 gap-4 p-3 glass-panel">
             <div class="flex items-center gap-4">
                 <div id="live-color-swatch" class="w-12 h-12 border-2 border-gray-500 rounded-md transition-colors flex-shrink-0"></div>
                 <div class="text-left">
@@ -171,13 +195,13 @@
 
 
         <!-- Nota Defteri -->
-        <div id="music-sheet-container" style="display: none;" class="w-full max-w-2xl mx-auto mt-6 bg-gray-800/50 backdrop-blur-sm border border-gray-700 rounded-xl p-4">
+        <div id="music-sheet-container" style="display: none;" class="w-full max-w-2xl mx-auto mt-6 glass-panel p-4" data-tour-text="Besteniz, nota defterine bu şekilde yazılacak.">
             <h2 class="text-xl font-bold mb-2 text-white">Nota Defteri</h2>
             <div id="music-sheet" class="font-mono text-lime-400 h-36 overflow-y-auto bg-gray-900 rounded-md p-3 text-sm whitespace-pre-wrap break-words"></div>
         </div>
 
         <!-- Müzik Çalar -->
-        <div id="music-player-container" style="display: none;" class="w-full max-w-2xl mx-auto mt-6 bg-gray-800/50 backdrop-blur-sm border border-gray-700 rounded-xl p-4">
+        <div id="music-player-container" style="display: none;" class="w-full max-w-2xl mx-auto mt-6 glass-panel p-4" data-tour-text="Kaydettiğiniz besteyi buradan dinleyebilir ve MP3 olarak indirebilirsiniz.">
              <h2 class="text-xl font-bold mb-3 text-white text-center">Kaydedilen Beste</h2>
              <div class="flex items-center gap-4">
                 <audio id="audio-player" controls class="w-full"></audio>
@@ -220,6 +244,7 @@
         let html5QrCode;
         let transportLoop;
         let isDisposing = false;
+        const audioCache = {}; // ElevenLabs seslerini önbelleğe almak için
         
         let mode = 'idle'; // 'idle', 'image', 'camera'
         let controlMode = 'auto'; // 'auto', 'manual'
@@ -233,13 +258,13 @@
         const NOTE_REST_DURATION = 0.15; // Notalar arasına eklenecek duraklama (saniye)
 
         const noteMap = [
-            { name: "Kırmızı", note: "C4", displayName: "Do", rgb: [255, 0, 0], fileName: "krmz.wav" },
-            { name: "Turuncu", note: "D4", displayName: "Re", rgb: [255, 127, 0], fileName: "trnc.wav" },
-            { name: "Sarı", note: "E4", displayName: "Mi", rgb: [255, 255, 0], fileName: "sari.wav" },
-            { name: "Yeşil", note: "G4", displayName: "Sol", rgb: [0, 255, 0], fileName: "ysl.wav" },
-            { name: "Mavi", note: "A4", displayName: "La", rgb: [0, 0, 255], fileName: "mavi.wav" },
-            { name: "Mor", note: "C5", displayName: "Do (İnce)", rgb: [128, 0, 128], fileName: "mor.wav" },
-            { name: "Pembe", note: "B4", displayName: "Si", rgb: [255, 192, 203], fileName: "pmb.wav" }
+            { name: "Kırmızı", note: "C4", displayName: "Do", rgb: [255, 0, 0], fileName: "krmz.wav", symbol: "♩" },
+            { name: "Turuncu", note: "D4", displayName: "Re", rgb: [255, 127, 0], fileName: "trnc.wav", symbol: "♩" },
+            { name: "Sarı", note: "E4", displayName: "Mi", rgb: [255, 255, 0], fileName: "sari.wav", symbol: "♩" },
+            { name: "Yeşil", note: "F4", displayName: "Fa", rgb: [0, 255, 0], fileName: "ysl.wav", symbol: "♩" },
+            { name: "Mavi", note: "G4", displayName: "Sol", rgb: [0, 0, 255], fileName: "mavi.wav", symbol: "♩" },
+            { name: "Mor", note: "A5", displayName: "La (İnce)", rgb: [128, 0, 128], fileName: "mor.wav", symbol: "♩" },
+            { name: "Pembe", note: "C5", displayName: "Do (İnce)", rgb: [255, 192, 203], fileName: "pmb.wav", symbol: "♩" }
         ];
         
         // --- Arayüz Elemanları Referansları ---
@@ -262,6 +287,7 @@
         const liveIndicatorEl = document.getElementById('live-indicator');
         const imageSizeInfoEl = document.getElementById('image-size-info');
         const tempoDisplay = document.getElementById('tempo-display');
+        const tempoSlider = document.getElementById('tempo-slider');
         const fileInput = document.getElementById('file-input');
         const qrFileInput = document.getElementById('qr-file-input');
         const trainingSection = document.getElementById('training-section');
@@ -960,15 +986,14 @@
                 setTimeout(async () => {
                     const recording = await recorder.stop();
                     const url = URL.createObjectURL(recording);
-                    const anchor = document.createElement("a");
-                    anchor.download = "bestem.wav";
-                    anchor.href = url;
-                    anchor.click();
-                    URL.revokeObjectURL(url);
+                    
+                    musicPlayerContainer.style.display = 'block';
+                    audioPlayer.src = url;
+                    downloadLink.href = url;
 
                     saveButton.disabled = false;
                     saveButton.innerText = "🎵 Besteyi Kaydet";
-                    showModal("Besteniz 'bestem.wav' olarak indirildi!");
+                    showModal("Besteniz kaydedildi! Aşağıdaki müzik çalardan dinleyebilir veya indirebilirsiniz.");
                     
                     recSynth.dispose();
                     recKick.dispose();
@@ -992,14 +1017,9 @@
             pixelSizeDisplay.innerText = pixelStep;
         });
         
-        document.getElementById('slow-down-button').addEventListener('click', () => {
-            Tone.Transport.bpm.value = Math.max(40, Tone.Transport.bpm.value - 10);
-            tempoDisplay.innerText = Tone.Transport.bpm.value.toFixed(0);
-        });
-
-        document.getElementById('speed-up-button').addEventListener('click', () => {
-            Tone.Transport.bpm.value = Math.min(220, Tone.Transport.bpm.value + 10);
-            tempoDisplay.innerText = Tone.Transport.bpm.value.toFixed(0);
+        tempoSlider.addEventListener('input', (e) => {
+            Tone.Transport.bpm.value = parseInt(e.target.value, 10);
+            tempoDisplay.innerText = e.target.value;
         });
 
         const handleManualMove = (keyCode) => {
@@ -1072,24 +1092,27 @@
             });
         }
         
-        function speakText(text) {
-            if ('speechSynthesis' in window) {
-                // Mevcut konuşmaları iptal et
+        async function speakText(text) {
+             if ('speechSynthesis' in window) {
                 window.speechSynthesis.cancel();
                 const utterance = new SpeechSynthesisUtterance(text);
-                utterance.lang = 'tr-TR'; // Türkçe dilini ayarla
+                utterance.lang = 'tr-TR';
                 window.speechSynthesis.speak(utterance);
             } else {
                 console.log("Tarayıcınız sesli okuma özelliğini desteklemiyor.");
             }
         }
 
+
         function createTrainingSection() {
             const container = document.getElementById('training-boxes');
             container.innerHTML = ''; // Önceki kutuları temizle
             noteMap.forEach(noteInfo => {
+                const boxContainer = document.createElement('div');
+                boxContainer.className = 'flex flex-col items-center gap-2';
+
                 const box = document.createElement('div');
-                box.className = 'w-24 h-16 rounded-lg flex flex-col items-center justify-center cursor-pointer transform hover:scale-105 transition-transform';
+                box.className = 'w-20 h-14 rounded-lg flex items-center justify-center cursor-pointer transform hover:scale-105 transition-transform';
                 box.style.backgroundColor = `rgb(${noteInfo.rgb[0]}, ${noteInfo.rgb[1]}, ${noteInfo.rgb[2]})`;
                 
                 const text = document.createElement('span');
@@ -1097,15 +1120,41 @@
                 text.innerText = noteInfo.displayName;
                 box.appendChild(text);
 
-                box.addEventListener('click', () => {
+                const infoText = document.createElement('p');
+                infoText.className = 'text-xs text-center text-gray-300';
+                infoText.innerHTML = `${noteInfo.name} (${noteInfo.note}) <span class="text-lime-400">${noteInfo.symbol}</span>`;
+
+                boxContainer.appendChild(box);
+                boxContainer.appendChild(infoText);
+
+                box.addEventListener('mouseenter', () => {
                     if (synth && !synth.disposed) {
                         synth.triggerAttackRelease(noteInfo.note, '8n');
                         speakText(noteInfo.displayName);
                     }
                 });
-                container.appendChild(box);
+                container.appendChild(boxContainer);
             });
         }
+        
+        // Sesli Tur
+        document.addEventListener('DOMContentLoaded', () => {
+            const tourElements = document.querySelectorAll('[data-tour-text]');
+            const observer = new IntersectionObserver((entries) => {
+                entries.forEach(entry => {
+                    if (entry.isIntersecting) {
+                        const text = entry.target.getAttribute('data-tour-text');
+                        speakText(text);
+                        observer.unobserve(entry.target); // Bir kere açıklandıktan sonra tekrar tetiklenmesin
+                    }
+                });
+            }, { threshold: 0.7 });
+
+            tourElements.forEach(el => {
+                observer.observe(el);
+                el.addEventListener('mouseenter', () => speakText(el.getAttribute('data-tour-text')));
+            });
+        });
 
         
         // Başlangıç temposunu ayarla
