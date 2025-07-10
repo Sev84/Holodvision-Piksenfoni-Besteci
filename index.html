@@ -1,0 +1,935 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PİKSENFONİ - İnteraktif Besteci</title>
+    
+    <!-- Harici Kütüphaneler -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.9.0/p5.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.7.77/Tone.js"></script>
+    <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+    
+    <!-- Modern stil için Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Özel Google Font -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+
+    <style>
+        /* Tailwind'i tamamlayan özel stiller */
+        body {
+            font-family: 'Inter', sans-serif;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+        }
+        
+        /* Ana tuval için özel gölge */
+        main {
+            box-shadow: 0 0 25px rgba(236, 72, 153, 0.4);
+        }
+
+        /* Nota defteri için özel kaydırma çubuğu */
+        #music-sheet::-webkit-scrollbar {
+            width: 8px;
+        }
+        #music-sheet::-webkit-scrollbar-track {
+            background: #1f2937;
+        }
+        #music-sheet::-webkit-scrollbar-thumb {
+            background-color: #ec4899;
+            border-radius: 10px;
+            border: 2px solid #1f2937;
+        }
+    </style>
+</head>
+<body class="bg-gray-900 text-gray-200 flex flex-col items-center min-h-screen p-4 transition-colors duration-500">
+
+    <div class="w-full max-w-4xl mx-auto">
+        <header class="text-center mb-6">
+            <h1 class="text-4xl sm:text-5xl font-bold text-white tracking-tight">
+                <span class="text-pink-500">Piksen</span>foni
+            </h1>
+            <p class="text-gray-400 mt-2 text-lg">İnteraktif Besteci</p>
+        </header>
+
+        <!-- Başlangıç Kontrolleri -->
+        <div id="initial-controls" class="flex flex-col sm:flex-row items-center justify-center gap-4 p-6 bg-gray-800/50 backdrop-blur-sm border border-gray-700 rounded-xl">
+            <button id="upload-button" class="w-full sm:w-auto flex items-center justify-center gap-2 bg-pink-600 hover:bg-pink-700 text-white font-bold py-3 px-6 rounded-lg shadow-md transition-all duration-300 transform hover:scale-105">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>
+                Pikselli Resim Yükle
+            </button>
+            <button id="pixelate-button" class="w-full sm:w-auto flex items-center justify-center gap-2 bg-purple-600 hover:bg-purple-700 text-white font-bold py-3 px-6 rounded-lg shadow-md transition-all duration-300 transform hover:scale-105">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-wand-2"><path d="m21.64 3.64-1.28-1.28a1.21 1.21 0 0 0-1.72 0L2.36 18.64a1.21 1.21 0 0 0 0 1.72l1.28 1.28a1.2 1.2 0 0 0 1.72 0L21.64 5.36a1.2 1.2 0 0 0 0-1.72Z"/><path d="m14 7 3 3"/><path d="M5 6v4"/><path d="M19 14v4"/><path d="M10 2v2"/><path d="M7 8H3"/><path d="M21 16h-4"/><path d="M11 3H9"/></svg>
+                Resmi Pikselleştir
+            </button>
+            <button id="camera-button" class="w-full sm:w-auto flex items-center justify-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-6 rounded-lg shadow-md transition-all duration-300 transform hover:scale-105">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path><circle cx="12" cy="13" r="4"></circle></svg>
+                Kamerayı Kullan
+            </button>
+            <input type="file" id="file-input" class="hidden" accept="image/*" />
+        </div>
+
+        <!-- p5.js için Ana Tuval -->
+        <main id="main" style="display: none;" class="w-full max-w-2xl mx-auto aspect-video border-2 border-pink-500 rounded-xl overflow-hidden mt-6 relative line-height-0"></main>
+
+        <!-- QR Kod Okuyucu Alanı -->
+        <div id="qr-reader-container" style="display: none;" class="text-center mt-6 p-4 bg-gray-800 rounded-xl w-full max-w-sm mx-auto">
+            <div id="qr-reader" class="w-full rounded-lg overflow-hidden border-2 border-gray-600"></div>
+            <button id="stop-qr-button" class="mt-4 bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-lg transition-colors">QR Okumayı Durdur</button>
+        </div>
+
+        <!-- Ana Kontroller (Enstrümanlar, Tarama, vb.) -->
+        <div id="controls" style="display: none;" class="w-full max-w-4xl mt-6 p-4 bg-gray-800/50 backdrop-blur-sm border border-gray-700 rounded-xl">
+            <div class="flex justify-start mb-4">
+                 <button id="back-button" class="flex items-center justify-center gap-2 bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded-lg shadow-md transition-all duration-300">
+                    &larr; Geri
+                </button>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 items-center">
+                <!-- Enstrüman Seçici -->
+                <div class="flex flex-col gap-2">
+                    <label id="instrument-label" for="instrument-choice" class="font-semibold text-gray-300">Enstrüman</label>
+                    <select id="instrument-choice" class="bg-gray-700 border border-gray-600 text-white rounded-lg p-2.5 focus:ring-2 focus:ring-pink-500 focus:outline-none transition-all">
+                        <option value="Synth">Synth</option>
+                        <option value="Piano">Piyano</option>
+                        <option value="Violin">Keman</option>
+                    </select>
+                </div>
+
+                <!-- Piksel & Hız Kontrolleri -->
+                <div id="pixel-speed-controls" style="display: none;" class="flex flex-col gap-4">
+                    <div class="flex flex-col gap-2">
+                        <label for="pixel-size-slider" class="font-semibold text-gray-300">Piksel Boyutu: <span id="pixel-size-display">20</span>px</label>
+                        <input type="range" id="pixel-size-slider" min="10" max="50" value="20" step="2" class="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer accent-pink-500" />
+                    </div>
+                     <div class="flex flex-col gap-2">
+                        <label for="tempo-controls" class="font-semibold text-gray-300">Tempo: <span id="tempo-display">100</span> BPM</label>
+                        <div id="tempo-controls" class="flex items-center gap-2">
+                           <button id="slow-down-button" class="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg transition-colors">- Yavaşlat</button>
+                           <button id="speed-up-button" class="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg transition-colors">+ Hızlandır</button>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Eylem Düğmeleri -->
+                <div class="flex flex-wrap gap-2 justify-start md:col-span-2 lg:col-span-3">
+                    <button id="auto-scan-button" style="display: none;" class="flex-grow sm:flex-grow-0 bg-teal-500 hover:bg-teal-600 text-white font-bold py-2 px-4 rounded-lg transition-colors disabled:bg-gray-600 disabled:cursor-not-allowed">Otomatik Bestelet</button>
+                    <button id="manual-scan-button" style="display: none;" class="flex-grow sm:flex-grow-0 bg-cyan-500 hover:bg-cyan-600 text-white font-bold py-2 px-4 rounded-lg transition-colors">Manuel Çal</button>
+                    <button id="qr-scan-button" style="display: none;" class="flex-grow sm:flex-grow-0 bg-purple-600 hover:bg-purple-700 text-white font-bold py-2 px-4 rounded-lg transition-colors">QR Oku</button>
+                    <button id="save-button" style="display: none;" class="flex-grow sm:flex-grow-0 bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-lg transition-colors disabled:bg-gray-600 disabled:cursor-wait">🎵 Besteyi Kaydet</button>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Manuel Kontroller (Oklar) -->
+        <div id="manual-controls" style="display: none;" class="mt-4 flex flex-col items-center gap-2">
+            <p class="text-gray-400">Ok tuşlarını/fareyi kullanın. Çalınan notalar kaydedilir.</p>
+            <div class="grid grid-cols-3 gap-2 w-40">
+                <div class="col-start-2 flex justify-center"><button id="arrow-up" class="w-12 h-12 bg-gray-700 hover:bg-pink-600 text-white font-bold text-2xl rounded-lg transition-colors flex items-center justify-center">↑</button></div>
+                <div class="flex justify-center"><button id="arrow-left" class="w-12 h-12 bg-gray-700 hover:bg-pink-600 text-white font-bold text-2xl rounded-lg transition-colors flex items-center justify-center">←</button></div>
+                <div class="flex justify-center"><button id="arrow-down" class="w-12 h-12 bg-gray-700 hover:bg-pink-600 text-white font-bold text-2xl rounded-lg transition-colors flex items-center justify-center">↓</button></div>
+                <div class="flex justify-center"><button id="arrow-right" class="w-12 h-12 bg-gray-700 hover:bg-pink-600 text-white font-bold text-2xl rounded-lg transition-colors flex items-center justify-center">→</button></div>
+            </div>
+        </div>
+        
+        <!-- Canlı Nota Göstergesi -->
+        <div id="live-indicator" style="display: none;" class="w-full max-w-2xl mx-auto mt-4 grid grid-cols-1 sm:grid-cols-2 gap-4 p-3 bg-gray-800/50 rounded-xl border border-gray-700">
+            <div class="flex items-center gap-4">
+                <div id="live-color-swatch" class="w-12 h-12 border-2 border-gray-500 rounded-md transition-colors flex-shrink-0"></div>
+                <div class="text-left">
+                    <p class="text-lg font-semibold text-white" id="live-note-name">--</p>
+                    <p class="text-sm text-gray-400" id="live-note-info">Renk bekleniyor...</p>
+                </div>
+            </div>
+            <div class="flex items-center gap-4">
+                <div id="live-grayscale-swatch" class="w-12 h-12 border-2 border-gray-500 rounded-md transition-colors flex-shrink-0"></div>
+                <div class="text-left">
+                    <p class="text-lg font-semibold text-white" id="live-beat-title">Vuruş</p>
+                    <p class="text-sm text-gray-400" id="live-beat-info">--</p>
+                </div>
+            </div>
+        </div>
+        <div id="image-size-info" style="display: none;" class="text-center text-gray-400 text-sm mt-2"></div>
+
+
+        <!-- Nota Defteri -->
+        <div id="music-sheet-container" style="display: none;" class="w-full max-w-2xl mx-auto mt-6 bg-gray-800/50 backdrop-blur-sm border border-gray-700 rounded-xl p-4">
+            <h2 class="text-xl font-bold mb-2 text-white">Nota Defteri</h2>
+            <div id="music-sheet" class="font-mono text-lime-400 h-36 overflow-y-auto bg-gray-900 rounded-md p-3 text-sm whitespace-pre-wrap break-words"></div>
+        </div>
+    </div>
+    
+    <!-- Özel Uyarı Pencereleri -->
+    <div id="custom-modal" style="display: none;" class="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
+        <div class="bg-gray-800 rounded-xl shadow-2xl p-6 w-full max-w-md text-center border border-gray-700">
+            <p id="modal-message" class="text-lg mb-6 text-gray-200"></p>
+            <div id="modal-link-container" class="mb-6"></div>
+            <button id="modal-close-button" class="bg-pink-600 hover:bg-pink-700 text-white font-bold py-2 px-6 rounded-lg transition-colors">Kapat</button>
+        </div>
+    </div>
+
+    <div id="pixelate-modal" style="display: none;" class="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
+        <div class="bg-gray-800 rounded-xl shadow-2xl p-6 w-full max-w-md text-center border border-gray-700">
+            <h3 class="text-xl font-bold mb-4 text-white">Pikselleştirme Ayarları</h3>
+            <div class="flex flex-col gap-2 mb-6 text-left">
+                <label for="pixelate-size-slider" class="font-semibold text-gray-300">Piksel Boyutu: <span id="pixelate-size-display">20</span>px</label>
+                <input type="range" id="pixelate-size-slider" min="5" max="40" value="20" step="1" class="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer accent-purple-500" />
+            </div>
+            <div class="flex gap-4">
+                <button id="pixelate-confirm-button" class="flex-1 bg-purple-600 hover:bg-purple-700 text-white font-bold py-2 px-6 rounded-lg transition-colors">Onayla ve Yükle</button>
+                <button id="pixelate-cancel-button" class="flex-1 bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 px-6 rounded-lg transition-colors">İptal</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- Genel Değişkenler ve Sabitler ---
+        let img;
+        let capture;
+        let synth, kickSynth, violinChorus;
+        let p5Instance;
+        let html5QrCode;
+        let transportLoop;
+        
+        let mode = 'idle'; // 'idle', 'image', 'camera'
+        let controlMode = 'auto'; // 'auto', 'manual'
+        let scanning = false;
+        let scanX, scanY, scanDirection;
+        let manualScanX = 0, manualScanY = 0;
+        let pixelStep = 20; 
+        let recordedMelody = [];
+        let lastPlayedNote = null; // Manuel modda tekrar tetiklemeyi önlemek için
+
+        const NOTE_REST_DURATION = 0.15; // Notalar arasına eklenecek duraklama (saniye)
+
+        const noteMap = [
+            { name: "Kırmızı", note: "C4", displayName: "Do", rgb: [255, 0, 0] },
+            { name: "Turuncu", note: "D4", displayName: "Re", rgb: [255, 127, 0] },
+            { name: "Sarı", note: "E4", displayName: "Mi", rgb: [255, 255, 0] },
+            { name: "Yeşil", note: "G4", displayName: "Sol", rgb: [0, 255, 0] },
+            { name: "Mavi", note: "A4", displayName: "La", rgb: [0, 0, 255] },
+            { name: "Mor", note: "C5", displayName: "Do (İnce)", rgb: [128, 0, 128] }
+        ];
+        
+        // --- Arayüz Elemanları Referansları ---
+        const initialControlsEl = document.getElementById('initial-controls');
+        const mainEl = document.getElementById('main');
+        const controlsEl = document.getElementById('controls');
+        const qrReaderContainerEl = document.getElementById('qr-reader-container');
+        const autoScanButton = document.getElementById('auto-scan-button');
+        const manualScanButton = document.getElementById('manual-scan-button');
+        const manualControlsEl = document.getElementById('manual-controls');
+        const saveButton = document.getElementById('save-button');
+        const musicSheetContainer = document.getElementById('music-sheet-container');
+        const musicSheet = document.getElementById('music-sheet');
+        const pixelSpeedControls = document.getElementById('pixel-speed-controls');
+        const pixelSizeSlider = document.getElementById('pixel-size-slider');
+        const pixelSizeDisplay = document.getElementById('pixel-size-display');
+        const qrScanButton = document.getElementById('qr-scan-button');
+        const liveIndicatorEl = document.getElementById('live-indicator');
+        const imageSizeInfoEl = document.getElementById('image-size-info');
+        const tempoDisplay = document.getElementById('tempo-display');
+        const fileInput = document.getElementById('file-input');
+        
+        // Modal elemanları
+        const modal = document.getElementById('custom-modal');
+        const modalMessage = document.getElementById('modal-message');
+        const modalLinkContainer = document.getElementById('modal-link-container');
+        const modalCloseButton = document.getElementById('modal-close-button');
+        const pixelateModal = document.getElementById('pixelate-modal');
+
+        // --- Ana Uygulama Mantığı ---
+
+        function startP5(newMode, data = null) {
+            mode = newMode;
+            initialControlsEl.style.display = 'none';
+            mainEl.style.display = 'block';
+            controlsEl.style.display = 'block';
+            liveIndicatorEl.style.display = 'grid';
+            imageSizeInfoEl.style.display = 'block';
+            if (p5Instance) p5Instance.remove();
+            p5Instance = new p5(p => sketch(p, data));
+        }
+
+        async function setupInstruments(instrumentType) {
+            const instrumentLabel = document.getElementById('instrument-label');
+            const instrumentButtons = [autoScanButton, manualScanButton];
+            const setButtonsDisabled = (disabled) => instrumentButtons.forEach(btn => { if(btn) btn.disabled = disabled; });
+            
+            instrumentLabel.innerText = 'Enstrüman (Yükleniyor...)';
+            setButtonsDisabled(true); 
+            
+            const reverb = new Tone.Reverb(0.8).toDestination();
+            if (synth) await synth.dispose();
+            if (violinChorus) await violinChorus.dispose();
+
+            if (!kickSynth) {
+                 kickSynth = new Tone.MembraneSynth({ pitchDecay: 0.01, octaves: 6, envelope: { attack: 0.001, decay: 0.2, sustain: 0.01 } }).toDestination();
+            }
+            
+            if (instrumentType === 'Piano') {
+                synth = new Tone.Sampler({
+                    urls: { C4: "C4.mp3", G4: "G4.mp3", A4: "A4.mp3", E4: "E4.mp3", D4: "D4.mp3", C5: "C5.mp3" },
+                    baseUrl: "https://tonejs.github.io/audio/casio/",
+                }).connect(reverb);
+                await Tone.loaded(); // Piyano seslerinin yüklenmesini bekle
+            } else if (instrumentType === 'Violin') {
+                violinChorus = new Tone.Chorus(4, 2.5, 0.5).toDestination().start();
+                synth = new Tone.AMSynth({
+                    harmonicity: 1.2,
+                    envelope: { attack: 0.05, decay: 1, sustain: 0.4, release: 1.5 },
+                    modulationEnvelope: { attack: 0.2, decay: 0.3, sustain: 0.8, release: 1.5 }
+                }).connect(violinChorus);
+            } else { // Varsayılan Synth
+                synth = new Tone.FMSynth({
+                    harmonicity: 3.01,
+                    modulationIndex: 14,
+                    envelope: { attack: 0.01, decay: 0.2 },
+                    modulationEnvelope: { attack: 0.01, decay: 0.5 }
+                }).connect(reverb);
+            }
+            
+            console.log(`${instrumentType} sesleri yüklendi.`);
+            instrumentLabel.innerText = 'Enstrüman';
+            setButtonsDisabled(false);
+        }
+
+        const sketch = (p, data) => {
+            let lastPlayFrame = 0;
+            const noteInterval = 10; 
+
+            p.preload = () => {
+                if (mode === 'image' && data) {
+                    img = p.loadImage(data);
+                }
+            };
+
+            p.setup = () => {
+                const canvas = p.createCanvas(640, 480);
+                canvas.parent('main');
+                
+                setupInstruments('Synth'); 
+
+                p.textAlign(p.CENTER, p.CENTER);
+                p.textSize(18);
+
+                if (mode === 'camera') {
+                    capture = p.createCapture(p.VIDEO);
+                    capture.size(640, 480);
+                    capture.hide();
+                    autoScanButton.style.display = 'none';
+                    manualScanButton.style.display = 'none';
+                    pixelSpeedControls.style.display = 'none';
+                    qrScanButton.style.display = 'inline-block';
+                    musicSheetContainer.style.display = 'none';
+                    imageSizeInfoEl.style.display = 'none';
+                } else if (mode === 'image' && img) {
+                    autoScanButton.style.display = 'inline-block';
+                    manualScanButton.style.display = 'inline-block';
+                    musicSheetContainer.style.display = 'block';
+                    pixelSpeedControls.style.display = 'flex';
+                    p.image(img, 0, 0, p.width, p.height);
+                    
+                    const dpi = 96;
+                    const widthCm = (p.width / dpi * 2.54).toFixed(1);
+                    const heightCm = (p.height / dpi * 2.54).toFixed(1);
+                    imageSizeInfoEl.innerText = `Yaklaşık Resim Boyutu: ${widthCm} cm x ${heightCm} cm`;
+                }
+            };
+
+            p.draw = () => {
+                if (mode === 'camera' && capture && capture.loadedmetadata) {
+                    p.image(capture, 0, 0, p.width, p.height);
+                    if (p.frameCount - lastPlayFrame > noteInterval) {
+                        analyzeCenterPixel(p);
+                        lastPlayFrame = p.frameCount;
+                    }
+                } else if (mode === 'image' && img) {
+                    p.image(img, 0, 0, p.width, p.height);
+                    if (scanning) {
+                        p.fill(255, 255, 0, 100);
+                        p.stroke(255, 255, 0);
+                        p.strokeWeight(2);
+                        p.rect(scanX, scanY, pixelStep, pixelStep);
+                    } else if (controlMode === 'manual') {
+                        p.fill(0, 255, 255, 100);
+                        p.stroke(0, 255, 255);
+                        p.strokeWeight(2);
+                        p.rect(manualScanX, manualScanY, pixelStep, pixelStep);
+                    }
+                }
+            };
+
+            p.mouseMoved = () => {
+                if (controlMode === 'manual' && !scanning && p.mouseX > 0 && p.mouseX < p.width && p.mouseY > 0 && p.mouseY < p.height) {
+                    manualScanX = p.constrain(p.mouseX - pixelStep / 2, 0, p.width - pixelStep);
+                    manualScanY = p.constrain(p.mouseY - pixelStep / 2, 0, p.height - pixelStep);
+                    analyzeAndPlayManual(p, manualScanX, manualScanY);
+                }
+            };
+            
+            p.mouseReleased = () => {
+                lastPlayedNote = null; 
+            };
+
+            p.keyPressed = (keyCode) => {
+                const key = keyCode || p.keyCode;
+                if(controlMode !== 'manual' || scanning) return;
+                
+                let moved = false;
+                if (key === p.LEFT_ARROW) { manualScanX -= pixelStep; moved = true; }
+                else if (key === p.RIGHT_ARROW) { manualScanX += pixelStep; moved = true; }
+                else if (key === p.UP_ARROW) { manualScanY -= pixelStep; moved = true; }
+                else if (key === p.DOWN_ARROW) { manualScanY += pixelStep; moved = true; }
+
+                if (moved) {
+                    manualScanX = p.constrain(manualScanX, 0, p.width - pixelStep);
+                    manualScanY = p.constrain(manualScanY, 0, p.height - pixelStep);
+                    analyzeAndPlayManual(p, manualScanX, manualScanY);
+                    lastPlayedNote = null;
+                }
+            };
+        };
+        
+        // --- Analiz ve Ses Fonksiyonları ---
+
+        function analyzeAndPlay(p) {
+            if (!scanning || !p) return;
+
+            const centerX = scanX + pixelStep / 2;
+            const centerY = scanY + pixelStep / 2;
+            if (centerX >= p.width || centerY >= p.height) return;
+
+            const detectedColor = p.get(centerX, centerY);
+            const match = findClosestColor(detectedColor[0], detectedColor[1], detectedColor[2]);
+            
+            if (match && match.similarity > 40) {
+                const duration = brightnessToDuration(getBrightness(detectedColor[0], detectedColor[1], detectedColor[2]));
+                synth.triggerAttackRelease(match.note, duration);
+                recordedMelody.push({ type: 'melodic', note: match.note, duration: Tone.Time(duration).toSeconds() });
+                updateMusicSheet(getNoteSymbol(duration), match.displayName);
+                updateLiveIndicator(detectedColor, match, null);
+            } else {
+                const brightness = getBrightness(detectedColor[0], detectedColor[1], detectedColor[2]);
+                const percussion = brightnessToPercussion(brightness);
+                kickSynth.triggerAttackRelease("C1", "8n");
+                recordedMelody.push({ type: 'percussion', note: "C1", duration: percussion.duration });
+                updateMusicSheet(`V${percussion.beat}`);
+                updateLiveIndicator(detectedColor, null, percussion);
+            }
+            recordedMelody.push({ type: 'rest', duration: NOTE_REST_DURATION });
+            
+            scanX += scanDirection * pixelStep;
+            if (scanX >= p.width || scanX < 0) {
+                scanDirection *= -1;
+                scanX += scanDirection * pixelStep;
+                scanY += pixelStep;
+                updateMusicSheet('\n'); 
+            }
+
+            if (scanY >= p.height) {
+                scanning = false; 
+            }
+        }
+        
+        function analyzeAndPlayManual(p, x, y) {
+            const detectedColor = p.get(x + pixelStep / 2, y + pixelStep / 2);
+            const match = findClosestColor(detectedColor[0], detectedColor[1], detectedColor[2]);
+            
+            const uniqueId = `${Math.floor(x)}-${Math.floor(y)}`;
+            if (lastPlayedNote === uniqueId) return;
+
+            if (match && match.similarity > 40) {
+                const duration = "8n";
+                synth.triggerAttackRelease(match.note, duration);
+                recordedMelody.push({ type: 'melodic', note: match.note, duration: Tone.Time(duration).toSeconds() });
+                updateMusicSheet(getNoteSymbol(duration), match.displayName);
+                updateLiveIndicator(detectedColor, match, null);
+            } else {
+                const brightness = getBrightness(detectedColor[0], detectedColor[1], detectedColor[2]);
+                const percussion = brightnessToPercussion(brightness);
+                kickSynth.triggerAttackRelease("C1", "8n");
+                recordedMelody.push({ type: 'percussion', note: "C1", duration: percussion.duration });
+                updateMusicSheet(`V${percussion.beat}`);
+                updateLiveIndicator(detectedColor, null, percussion);
+            }
+            
+            lastPlayedNote = uniqueId;
+            if(saveButton.style.display === 'none' && recordedMelody.length > 0) {
+                saveButton.style.display = 'inline-block';
+            }
+        }
+
+        function analyzeCenterPixel(p) {
+            const x = p.width / 2;
+            const y = p.height / 2;
+            const detectedColor = p.get(x, y);
+            const match = findClosestColor(detectedColor[0], detectedColor[1], detectedColor[2]);
+
+            if (match && match.similarity > 40) {
+                if (lastPlayedNote !== match.note) {
+                    synth.triggerAttackRelease(match.note, "8n");
+                    lastPlayedNote = match.note;
+                }
+                 updateLiveIndicator(detectedColor, match, null);
+            } else {
+                const brightness = getBrightness(detectedColor[0], detectedColor[1], detectedColor[2]);
+                const percussion = brightnessToPercussion(brightness);
+                if (lastPlayedNote !== 'kick') {
+                    kickSynth.triggerAttackRelease("C1", "8n");
+                    lastPlayedNote = 'kick';
+                }
+                updateLiveIndicator(detectedColor, null, percussion);
+            }
+            
+            p.stroke(255, 100);
+            p.strokeWeight(2);
+            p.noFill();
+            p.ellipse(x, y, 20, 20);
+            
+            setTimeout(() => { lastPlayedNote = null; }, 200);
+        }
+
+        // --- Yardımcı Fonksiyonlar ---
+
+        function updateLiveIndicator(rgb, match, percussion) {
+            const swatch = document.getElementById('live-color-swatch');
+            const noteNameEl = document.getElementById('live-note-name');
+            const noteInfoEl = document.getElementById('live-note-info');
+            const graySwatch = document.getElementById('live-grayscale-swatch');
+            const beatTitleEl = document.getElementById('live-beat-title');
+            const beatInfoEl = document.getElementById('live-beat-info');
+
+            swatch.style.backgroundColor = `rgb(${rgb[0]}, ${rgb[1]}, ${rgb[2]})`;
+            const gray = getBrightness(rgb[0], rgb[1], rgb[2]);
+            graySwatch.style.backgroundColor = `rgb(${gray}, ${gray}, ${gray})`;
+
+            if (match) {
+                noteNameEl.innerText = `${match.name} (${match.displayName})`;
+                noteInfoEl.innerText = `Nota: ${match.note} | Benzerlik: %${match.similarity.toFixed(0)}`;
+                beatTitleEl.innerText = "Vuruş";
+                beatInfoEl.innerText = "--";
+            } else {
+                 noteNameEl.innerText = "Melodi Yok";
+                 noteInfoEl.innerText = "Vuruş için renk bekleniyor...";
+                 const calculatedPercussion = percussion || brightnessToPercussion(gray);
+                 beatTitleEl.innerText = "Vuruş Ritmi";
+                 beatInfoEl.innerText = `${calculatedPercussion.name} (${calculatedPercussion.renkNuansi} - ${calculatedPercussion.beat} Vuruş)`;
+            }
+        }
+
+        function getNoteSymbol(duration) {
+            if (duration === "16n") return '♫'; 
+            if (duration === "4n") return '♩'; 
+            return '♪'; 
+        }
+
+        function updateMusicSheet(symbol, noteName = null) {
+            if(!musicSheet) return;
+            if (symbol === '\n') {
+                musicSheet.innerText += '\n';
+            } else {
+                musicSheet.innerText += noteName ? `${symbol}(${noteName}) ` : `${symbol} `;
+            }
+            musicSheet.scrollTop = musicSheet.scrollHeight; 
+        }
+
+        function getSaturation(r, g, b) {
+            const max = Math.max(r, g, b);
+            const min = Math.min(r, g, b);
+            if (max === 0) return 0;
+            return ((max - min) / max) * 100;
+        }
+
+        function getBrightness(r, g, b) {
+            return (r * 299 + g * 587 + b * 114) / 1000;
+        }
+
+        function brightnessToDuration(brightness) {
+            if (brightness < 70) return "16n";
+            if (brightness > 180) return "4n";
+            return "8n";
+        }
+        
+        function brightnessToPercussion(brightness) {
+            if (brightness < 85) { // Koyu Gri
+                return { duration: 1.0, beat: 3, name: "Yavaş Vuruş", renkNuansi: "Koyu Gri" };
+            } else if (brightness < 170) { // Orta Gri
+                return { duration: 0.5, beat: 2, name: "Orta Hızlı Vuruş", renkNuansi: "Orta Gri" };
+            } else { // Açık Gri
+                return { duration: 0.25, beat: 1, name: "Hızlı Vuruş", renkNuansi: "Açık Gri" };
+            }
+        }
+
+        function colorDistance(r1, g1, b1, r2, g2, b2) {
+            return Math.sqrt(Math.pow(r1 - r2, 2) + Math.pow(g1 - g2, 2) + Math.pow(b1 - b2, 2));
+        }
+
+        function findClosestColor(r, g, b) {
+            if (getSaturation(r, g, b) < 20) {
+                return null;
+            }
+            let closestDistance = Infinity;
+            let closestColor = null;
+
+            for (const target of noteMap) {
+                const distance = colorDistance(r, g, b, target.rgb[0], target.rgb[1], target.rgb[2]);
+                if (distance < closestDistance) {
+                    closestDistance = distance;
+                    closestColor = target;
+                }
+            }
+            
+            const maxDistance = 441.6; // sqrt(255^2 * 3)
+            const similarity = Math.max(0, 100 * (1 - closestDistance / maxDistance));
+            return { ...closestColor, similarity: similarity };
+        }
+
+        function pixelateImage(sourceImage, pixelationSize, callback) {
+            const img = new Image();
+            img.onload = () => {
+                const tempCanvas = document.createElement('canvas');
+                const tempCtx = tempCanvas.getContext('2d');
+                
+                const w = 640;
+                const h = 480;
+                tempCanvas.width = w;
+                tempCanvas.height = h;
+
+                // Orijinal resmi çiz
+                tempCtx.drawImage(img, 0, 0, w, h);
+
+                // Pikselleştirme
+                for (let y = 0; y < h; y += pixelationSize) {
+                    for (let x = 0; x < w; x += pixelationSize) {
+                        // Piksel bloğunun ortasından bir renk örneği al
+                        const px = x + Math.floor(pixelationSize / 2);
+                        const py = y + Math.floor(pixelationSize / 2);
+                        const data = tempCtx.getImageData(px, py, 1, 1).data;
+                        
+                        tempCtx.fillStyle = `rgba(${data[0]}, ${data[1]}, ${data[2]}, ${data[3] / 255})`;
+                        tempCtx.fillRect(x, y, pixelationSize, pixelationSize);
+                    }
+                }
+                callback(tempCanvas.toDataURL());
+            };
+            img.src = sourceImage;
+        }
+        
+        // --- Modal Fonksiyonları ---
+        function showModal(message, link = null) {
+            modalMessage.textContent = message;
+            modalLinkContainer.innerHTML = '';
+            if (link) {
+                const linkEl = document.createElement('a');
+                linkEl.href = link;
+                linkEl.textContent = "Bulunan Linki Aç";
+                linkEl.target = "_blank";
+                linkEl.rel = "noopener noreferrer";
+                linkEl.className = "text-pink-400 hover:text-pink-300 underline";
+                modalLinkContainer.appendChild(linkEl);
+            }
+            modal.style.display = 'flex';
+        }
+
+        function hideModal() {
+            modal.style.display = 'none';
+        }
+        
+        function resetToHome() {
+            scanning = false;
+            if (Tone.Transport.state === 'started') {
+                Tone.Transport.stop();
+                Tone.Transport.cancel();
+            }
+            if (transportLoop) {
+                transportLoop.dispose();
+                transportLoop = null;
+            }
+            if (synth && typeof synth.releaseAll === 'function') {
+                synth.releaseAll();
+            }
+            if (p5Instance) {
+                p5Instance.remove();
+                p5Instance = null;
+            }
+            if (capture) {
+                capture.stop(); 
+                capture.remove();
+                capture = null;
+            }
+            mainEl.style.display = 'none';
+            controlsEl.style.display = 'none';
+            manualControlsEl.style.display = 'none';
+            musicSheetContainer.style.display = 'none';
+            liveIndicatorEl.style.display = 'none';
+            imageSizeInfoEl.style.display = 'none';
+            initialControlsEl.style.display = 'flex';
+            if (html5QrCode && html5QrCode.isScanning) {
+                stopQRScanner();
+            }
+            qrReaderContainerEl.style.display = 'none';
+            recordedMelody = [];
+        }
+
+        // --- Olay Dinleyicileri ---
+        document.getElementById('upload-button').addEventListener('click', async () => {
+            if (Tone.context.state !== 'running') await Tone.start();
+            fileInput.dataset.mode = 'direct';
+            fileInput.click();
+        });
+
+        document.getElementById('pixelate-button').addEventListener('click', () => {
+            pixelateModal.style.display = 'flex';
+        });
+
+        document.getElementById('pixelate-cancel-button').addEventListener('click', () => {
+            pixelateModal.style.display = 'none';
+        });
+
+        document.getElementById('pixelate-confirm-button').addEventListener('click', async () => {
+             if (Tone.context.state !== 'running') await Tone.start();
+            pixelateModal.style.display = 'none';
+            fileInput.dataset.mode = 'pixelate';
+            fileInput.click();
+        });
+        
+        document.getElementById('pixelate-size-slider').addEventListener('input', (e) => {
+            document.getElementById('pixelate-size-display').innerText = e.target.value;
+        });
+
+        fileInput.addEventListener('change', (event) => {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const mode = fileInput.dataset.mode;
+                if (mode === 'pixelate') {
+                    const pixelationSize = parseInt(document.getElementById('pixelate-size-slider').value, 10);
+                    showModal("Resim pikselleştiriliyor, lütfen bekleyin...");
+                    pixelateImage(e.target.result, pixelationSize, (pixelatedDataUrl) => {
+                        hideModal();
+                        startP5('image', pixelatedDataUrl);
+                    });
+                } else {
+                    startP5('image', e.target.result);
+                }
+            };
+            reader.readAsDataURL(file);
+        });
+
+        document.getElementById('camera-button').addEventListener('click', async () => {
+            if (Tone.context.state !== 'running') await Tone.start();
+            startP5('camera');
+        });
+        
+        document.getElementById('back-button').addEventListener('click', resetToHome);
+
+        autoScanButton.addEventListener('click', async () => {
+            if (Tone.context.state !== 'running') await Tone.start();
+            controlMode = 'auto';
+            manualControlsEl.style.display = 'none';
+            
+            if (scanning) {
+                scanning = false; // Kullanıcı durdurdu
+                autoScanButton.innerText = "Otomatik Bestelet";
+                if (transportLoop) transportLoop.stop(0);
+                Tone.Transport.stop();
+                if (recordedMelody.length > 0) {
+                    saveButton.style.display = 'inline-block';
+                }
+            } else {
+                if (p5Instance) {
+                    scanX = 0;
+                    scanY = 0;
+                    scanDirection = 1;
+                    scanning = true;
+                    recordedMelody = []; 
+                    musicSheet.innerText = ''; 
+                    autoScanButton.innerText = "Durdur";
+                    saveButton.style.display = 'none';
+                    
+                    Tone.Transport.cancel();
+                    
+                    transportLoop = new Tone.Loop((time) => {
+                        if (!scanning) {
+                            transportLoop.stop(0);
+                            Tone.Transport.stop();
+                            autoScanButton.innerText = "Tekrar Tara";
+                            if (recordedMelody.length > 0) {
+                                saveButton.style.display = 'inline-block';
+                            }
+                            return;
+                        }
+                        analyzeAndPlay(p5Instance);
+                    }, "4n").start(0);
+                    
+                    Tone.Transport.start();
+                }
+            }
+        });
+        
+        manualScanButton.addEventListener('click', () => {
+            scanning = false;
+            Tone.Transport.stop();
+            Tone.Transport.cancel();
+            controlMode = 'manual';
+            manualControlsEl.style.display = 'flex';
+            autoScanButton.innerText = "Otomatik Bestelet";
+            recordedMelody = [];
+            musicSheet.innerText = '';
+            saveButton.style.display = 'none';
+            if (p5Instance) {
+                manualScanX = p5Instance.width / 2;
+                manualScanY = p5Instance.height / 2;
+            }
+        });
+
+        saveButton.addEventListener('click', async () => {
+            if(recordedMelody.length === 0) {
+                showModal("Kaydedilecek bir melodi bulunamadı.");
+                return;
+            }
+            
+            saveButton.disabled = true;
+            saveButton.innerText = "Kaydediliyor...";
+
+            try {
+                await Tone.start();
+                const recorder = new Tone.Recorder();
+                const recKick = new Tone.MembraneSynth().connect(recorder);
+                
+                let recSynth;
+                const instrumentChoice = document.getElementById('instrument-choice').value;
+
+                const playRecording = () => {
+                    recorder.start();
+                    let accumulatedTime = 0;
+                    recordedMelody.forEach(noteEvent => {
+                        const scheduledTime = accumulatedTime;
+                        if (noteEvent.type === 'melodic') {
+                            recSynth.triggerAttackRelease(noteEvent.note, noteEvent.duration, scheduledTime);
+                        } else if (noteEvent.type === 'percussion') {
+                            recKick.triggerAttackRelease("C1", "8n", scheduledTime);
+                        }
+                        accumulatedTime += noteEvent.duration;
+                    });
+                    
+                    setTimeout(async () => {
+                        const recording = await recorder.stop();
+                        const url = URL.createObjectURL(recording);
+                        const anchor = document.createElement("a");
+                        anchor.download = "bestem.wav";
+                        anchor.href = url;
+                        anchor.click();
+                        URL.revokeObjectURL(url);
+
+                        saveButton.disabled = false;
+                        saveButton.innerText = "🎵 Besteyi Kaydet";
+                        showModal("Besteniz 'bestem.wav' olarak indirildi!");
+                        
+                        recSynth.dispose();
+                        recKick.dispose();
+                        recorder.dispose();
+                    }, accumulatedTime * 1000 + 500);
+                };
+
+                if (instrumentChoice === 'Piano') {
+                    recSynth = new Tone.Sampler({
+                        urls: { C4: "C4.mp3", G4: "G4.mp3", A4: "A4.mp3", E4: "E4.mp3", D4: "D4.mp3", C5: "C5.mp3" },
+                        baseUrl: "https://tonejs.github.io/audio/casio/",
+                        onload: playRecording,
+                    }).connect(recorder);
+                } else {
+                    recSynth = new (synth.constructor)().connect(recorder);
+                    playRecording();
+                }
+
+            } catch (error) {
+                console.error("Kayıt hatası:", error);
+                showModal("Beste kaydedilirken bir hata oluştu.");
+                saveButton.disabled = false;
+                saveButton.innerText = "🎵 Besteyi Kaydet";
+            }
+        });
+        
+        document.getElementById('instrument-choice').addEventListener('change', (event) => {
+            setupInstruments(event.target.value);
+        });
+
+        pixelSizeSlider.addEventListener('input', (e) => {
+            pixelStep = parseInt(e.target.value, 10);
+            pixelSizeDisplay.innerText = pixelStep;
+        });
+        
+        document.getElementById('slow-down-button').addEventListener('click', () => {
+            Tone.Transport.bpm.value = Math.max(40, Tone.Transport.bpm.value - 10);
+            tempoDisplay.innerText = Tone.Transport.bpm.value.toFixed(0);
+        });
+
+        document.getElementById('speed-up-button').addEventListener('click', () => {
+            Tone.Transport.bpm.value = Math.min(220, Tone.Transport.bpm.value + 10);
+            tempoDisplay.innerText = Tone.Transport.bpm.value.toFixed(0);
+        });
+
+        const handleManualMove = (keyCode) => {
+            if (p5Instance && controlMode === 'manual' && !scanning) {
+                p5Instance.keyPressed(keyCode);
+            }
+        };
+
+        document.getElementById('arrow-up').addEventListener('click', () => handleManualMove(p5Instance.UP_ARROW));
+        document.getElementById('arrow-down').addEventListener('click', () => handleManualMove(p5Instance.DOWN_ARROW));
+        document.getElementById('arrow-left').addEventListener('click', () => handleManualMove(p5Instance.LEFT_ARROW));
+        document.getElementById('arrow-right').addEventListener('click', () => handleManualMove(p5Instance.RIGHT_ARROW));
+        
+        qrScanButton.addEventListener('click', () => {
+            if (mode !== 'camera') return;
+            
+            mainEl.style.display = 'none';
+            qrReaderContainerEl.style.display = 'block';
+
+            html5QrCode = new Html5Qrcode("qr-reader");
+            const qrCodeSuccess = (decodedText, decodedResult) => {
+                stopQRScanner().then(() => {
+                     showModal(`QR Kod Bulundu: ${decodedText}`, decodedText);
+                });
+            };
+            const config = { fps: 10, qrbox: {width: 250, height: 250} };
+            html5QrCode.start({ facingMode: "environment" }, config, qrCodeSuccess)
+              .catch(err => console.log("QR Tarayıcı başlatılamadı.", err));
+        });
+
+        document.getElementById('stop-qr-button').addEventListener('click', stopQRScanner);
+        modalCloseButton.addEventListener('click', hideModal);
+
+        function stopQRScanner() {
+            return new Promise((resolve, reject) => {
+                if (html5QrCode && html5QrCode.isScanning) {
+                    html5QrCode.stop().then(() => {
+                        console.log("QR Tarama durduruldu.");
+                        qrReaderContainerEl.style.display = 'none';
+                        mainEl.style.display = 'block';
+                        resolve();
+                    }).catch(err => {
+                        console.error("QR tarayıcı durdurulamadı", err);
+                        qrReaderContainerEl.style.display = 'none';
+                        mainEl.style.display = 'block';
+                        reject(err);
+                    });
+                } else {
+                    resolve();
+                }
+            });
+        }
+        
+        // Başlangıç temposunu ayarla
+        Tone.Transport.bpm.value = 100;
+        tempoDisplay.innerText = Tone.Transport.bpm.value.toFixed(0);
+    </script>
+</body>
+</html>
