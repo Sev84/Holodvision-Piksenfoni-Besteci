@@ -97,6 +97,7 @@
                         <option value="Piano">Piyano</option>
                         <option value="Violin">Keman</option>
                         <option value="AcousticGuitar">Akustik Gitar</option>
+                        <option value="Custom">Kişisel Ses Setim</option>
                     </select>
                 </div>
 
@@ -194,6 +195,7 @@
         let p5Instance;
         let html5QrCode;
         let transportLoop;
+        let isDisposing = false;
         
         let mode = 'idle'; // 'idle', 'image', 'camera'
         let controlMode = 'auto'; // 'auto', 'manual'
@@ -207,12 +209,13 @@
         const NOTE_REST_DURATION = 0.15; // Notalar arasına eklenecek duraklama (saniye)
 
         const noteMap = [
-            { name: "Kırmızı", note: "C4", displayName: "Do", rgb: [255, 0, 0] },
-            { name: "Turuncu", note: "D4", displayName: "Re", rgb: [255, 127, 0] },
-            { name: "Sarı", note: "E4", displayName: "Mi", rgb: [255, 255, 0] },
-            { name: "Yeşil", note: "G4", displayName: "Sol", rgb: [0, 255, 0] },
-            { name: "Mavi", note: "A4", displayName: "La", rgb: [0, 0, 255] },
-            { name: "Mor", note: "C5", displayName: "Do (İnce)", rgb: [128, 0, 128] }
+            { name: "Kırmızı", note: "C4", displayName: "Do", rgb: [255, 0, 0], fileName: "krmz.wav" },
+            { name: "Turuncu", note: "D4", displayName: "Re", rgb: [255, 127, 0], fileName: "trnc.wav" },
+            { name: "Sarı", note: "E4", displayName: "Mi", rgb: [255, 255, 0], fileName: "sari.wav" },
+            { name: "Yeşil", note: "G4", displayName: "Sol", rgb: [0, 255, 0], fileName: "ysl.wav" },
+            { name: "Mavi", note: "A4", displayName: "La", rgb: [0, 0, 255], fileName: "mavi.wav" },
+            { name: "Mor", note: "C5", displayName: "Do (İnce)", rgb: [128, 0, 128], fileName: "mor.wav" },
+            { name: "Pembe", note: "B4", displayName: "Si", rgb: [255, 192, 203], fileName: "pmb.wav" }
         ];
         
         // --- Arayüz Elemanları Referansları ---
@@ -256,6 +259,9 @@
         }
 
         async function setupInstruments(instrumentType) {
+            if (isDisposing) return;
+            isDisposing = true;
+
             const instrumentLabel = document.getElementById('instrument-label');
             const instrumentButtons = [autoScanButton, manualScanButton];
             const setButtonsDisabled = (disabled) => instrumentButtons.forEach(btn => { if(btn) btn.disabled = disabled; });
@@ -263,7 +269,6 @@
             instrumentLabel.innerText = `Enstrüman (${instrumentType} oluşturuluyor...)`;
             setButtonsDisabled(true); 
             
-            // Müzikal aktiviteyi durdur ve temizle
             scanning = false;
             if (transportLoop) {
                 transportLoop.stop(0).dispose();
@@ -283,9 +288,28 @@
                 await synth.dispose();
             }
 
-            if (!kickSynth) {
+            if (!kickSynth || kickSynth.disposed) {
                  kickSynth = new Tone.MembraneSynth({ pitchDecay: 0.01, octaves: 6, envelope: { attack: 0.001, decay: 0.2, sustain: 0.01 } }).toDestination();
             }
+            
+            const onInstrumentLoad = () => {
+                console.log(`${instrumentType} sesleri yüklendi.`);
+                instrumentLabel.innerText = 'Enstrüman';
+                setButtonsDisabled(false);
+                isDisposing = false;
+            };
+
+            const onInstrumentError = (error) => {
+                console.error(`${instrumentType} sesleri yüklenemedi:`, error);
+                showModal(`${instrumentType} sesleri yüklenemedi. Lütfen internet bağlantınızı kontrol edin veya başka bir enstrüman seçin. Varsayılan enstrümana geçiliyor.`);
+                const instrumentChoice = document.getElementById('instrument-choice');
+                if (instrumentChoice.value !== 'Synth') {
+                    instrumentChoice.value = 'Synth';
+                    instrumentChoice.dispatchEvent(new Event('change'));
+                } else {
+                    isDisposing = false;
+                }
+            };
             
             try {
                 if (instrumentType === 'Piano') {
@@ -308,6 +332,26 @@
                         dampening: 4000,
                         resonance: 0.9
                     }).toDestination();
+                } else if (instrumentType === 'Custom') {
+                    const GITHUB_BASE_URL = "https://raw.githubusercontent.com/Sev84/Holodvision-Piksenfoni-Besteci/main/"; 
+                    
+                    if (GITHUB_BASE_URL.includes("KULLANICI_ADINIZ")) {
+                        showModal("Lütfen 'Kişisel Ses Setim' için geçerli bir GitHub URL'si girin. Kod içerisinde 'GITHUB_BASE_URL' değişkenini düzenlemeniz gerekmektedir. Şimdilik varsayılan enstrümana geçiliyor.");
+                        const instrumentChoice = document.getElementById('instrument-choice');
+                        instrumentChoice.value = 'Synth';
+                        setTimeout(() => instrumentChoice.dispatchEvent(new Event('change')), 100);
+                        return;
+                    }
+
+                    const customUrls = {};
+                    noteMap.forEach(note => { customUrls[note.note] = note.fileName; });
+                    const customKickUrls = { "C1": "syh.wav", "C2": "byz.wav" };
+
+                    [synth, kickSynth] = await Promise.all([
+                        new Promise((resolve, reject) => new Tone.Sampler({ urls: customUrls, baseUrl: GITHUB_BASE_URL, onload: resolve, onerror: reject }).connect(reverb)),
+                        new Promise((resolve, reject) => new Tone.Sampler({ urls: customKickUrls, baseUrl: GITHUB_BASE_URL, onload: resolve, onerror: reject }).toDestination())
+                    ]);
+
                 } else { // Default Synth
                     synth = new Tone.FMSynth({
                         harmonicity: 3.01,
@@ -316,11 +360,9 @@
                         modulationEnvelope: { attack: 0.01, decay: 0.5 }
                     }).connect(reverb);
                 }
-                instrumentLabel.innerText = 'Enstrüman';
-                setButtonsDisabled(false);
+                onInstrumentLoad();
             } catch (error) {
-                console.error("Enstrüman oluşturulamadı:", error);
-                showModal("Enstrüman oluşturulurken bir hata oluştu. Lütfen tekrar deneyin.");
+                onInstrumentError(error);
             }
         }
 
@@ -442,8 +484,9 @@
             } else {
                 const brightness = getBrightness(detectedColor[0], detectedColor[1], detectedColor[2]);
                 const percussion = brightnessToPercussion(brightness);
-                kickSynth.triggerAttackRelease("C1", "8n");
-                recordedMelody.push({ type: 'percussion', note: "C1", duration: percussion.duration });
+                const kickNote = document.getElementById('instrument-choice').value === 'Custom' ? (brightness < 128 ? "C1" : "C2") : "C1";
+                kickSynth.triggerAttackRelease(kickNote, "8n");
+                recordedMelody.push({ type: 'percussion', note: kickNote, duration: percussion.duration });
                 updateMusicSheet(`V${percussion.beat}`);
                 updateLiveIndicator(detectedColor, null, percussion);
             }
@@ -478,8 +521,9 @@
             } else {
                 const brightness = getBrightness(detectedColor[0], detectedColor[1], detectedColor[2]);
                 const percussion = brightnessToPercussion(brightness);
-                kickSynth.triggerAttackRelease("C1", "8n");
-                recordedMelody.push({ type: 'percussion', note: "C1", duration: percussion.duration });
+                const kickNote = document.getElementById('instrument-choice').value === 'Custom' ? (brightness < 128 ? "C1" : "C2") : "C1";
+                kickSynth.triggerAttackRelease(kickNote, "8n");
+                recordedMelody.push({ type: 'percussion', note: kickNote, duration: percussion.duration });
                 updateMusicSheet(`V${percussion.beat}`);
                 updateLiveIndicator(detectedColor, null, percussion);
             }
@@ -505,8 +549,9 @@
             } else {
                 const brightness = getBrightness(detectedColor[0], detectedColor[1], detectedColor[2]);
                 const percussion = brightnessToPercussion(brightness);
+                const kickNote = document.getElementById('instrument-choice').value === 'Custom' ? (brightness < 128 ? "C1" : "C2") : "C1";
                 if (lastPlayedNote !== 'kick') {
-                    kickSynth.triggerAttackRelease("C1", "8n");
+                    kickSynth.triggerAttackRelease(kickNote, "8n");
                     lastPlayedNote = 'kick';
                 }
                 updateLiveIndicator(detectedColor, null, percussion);
@@ -828,72 +873,69 @@
             try {
                 await Tone.start();
                 const recorder = new Tone.Recorder();
-                const recKick = new Tone.MembraneSynth().connect(recorder);
                 
-                let recSynth;
                 const instrumentChoice = document.getElementById('instrument-choice').value;
-
-                const playRecording = () => {
-                    recorder.start();
-                    let accumulatedTime = 0;
-                    recordedMelody.forEach(noteEvent => {
-                        const scheduledTime = accumulatedTime;
-                        if (noteEvent.type === 'melodic') {
-                            recSynth.triggerAttackRelease(noteEvent.note, noteEvent.duration, scheduledTime);
-                        } else if (noteEvent.type === 'percussion') {
-                            recKick.triggerAttackRelease("C1", "8n", scheduledTime);
-                        }
-                        accumulatedTime += noteEvent.duration;
-                    });
-                    
-                    setTimeout(async () => {
-                        const recording = await recorder.stop();
-                        const url = URL.createObjectURL(recording);
-                        const anchor = document.createElement("a");
-                        anchor.download = "bestem.wav";
-                        anchor.href = url;
-                        anchor.click();
-                        URL.revokeObjectURL(url);
-
+                let recSynth;
+                let recKick;
+                
+                // Kayıt için enstrümanı yeniden oluştur
+                if (instrumentChoice === 'Piano') {
+                    recSynth = new Tone.PolySynth(Tone.FMSynth, { volume: -12, envelope: { attack: 0.01, decay: 1, sustain: 0.1, release: 0.8 }, harmonicity: 3, modulationIndex: 2 }).connect(recorder);
+                } else if (instrumentChoice === 'Violin') {
+                    recSynth = new Tone.AMSynth({ harmonicity: 1.2, envelope: { attack: 0.05, decay: 1, sustain: 0.4, release: 1.5 }, modulationEnvelope: { attack: 0.2, decay: 0.3, sustain: 0.8, release: 1.5 }, vibrato: 5 }).connect(recorder);
+                } else if (instrumentChoice === 'AcousticGuitar') {
+                     recSynth = new Tone.PluckSynth({ attackNoise: 1, dampening: 4000, resonance: 0.9 }).connect(recorder);
+                } else if (instrumentChoice === 'Custom') {
+                    const GITHUB_BASE_URL = "https://raw.githubusercontent.com/Sev84/Holodvision-Piksenfoni-Besteci/main/";
+                     if (GITHUB_BASE_URL.includes("KULLANICI_ADINIZ")) {
+                        showModal("Kayıt yapılamıyor. Lütfen önce kod içerisindeki 'GITHUB_BASE_URL' değişkenini geçerli bir adresle değiştirin.");
                         saveButton.disabled = false;
                         saveButton.innerText = "🎵 Besteyi Kaydet";
-                        showModal("Besteniz 'bestem.wav' olarak indirildi!");
-                        
-                        recSynth.dispose();
-                        recKick.dispose();
-                        recorder.dispose();
-                    }, accumulatedTime * 1000 + 500);
-                };
+                        return;
+                    }
+                    const customUrls = {};
+                    noteMap.forEach(note => { customUrls[note.note] = note.fileName; });
+                    const customKickUrls = { "C1": "syh.wav", "C2": "byz.wav" };
 
-                if (instrumentChoice === 'Piano') {
-                    recSynth = new Tone.PolySynth(Tone.FMSynth, {
-                        volume: -12,
-                        envelope: { attack: 0.01, decay: 1, sustain: 0.1, release: 0.8 },
-                        harmonicity: 3,
-                        modulationIndex: 2
-                    }).connect(recorder);
-                } else if (instrumentChoice === 'Violin') {
-                    recSynth = new Tone.AMSynth({
-                        harmonicity: 1.2,
-                        envelope: { attack: 0.05, decay: 1, sustain: 0.4, release: 1.5 },
-                        modulationEnvelope: { attack: 0.2, decay: 0.3, sustain: 0.8, release: 1.5 },
-                        vibrato: 5
-                    }).connect(recorder);
-                } else if (instrumentChoice === 'AcousticGuitar') {
-                     recSynth = new Tone.PluckSynth({
-                        attackNoise: 1,
-                        dampening: 4000,
-                        resonance: 0.9
-                    }).connect(recorder);
+                    [recSynth, recKick] = await Promise.all([
+                        new Promise((resolve, reject) => new Tone.Sampler({ urls: customUrls, baseUrl: GITHUB_BASE_URL, onload: () => resolve(recSynth), onerror: reject }).connect(recorder)),
+                        new Promise((resolve, reject) => new Tone.Sampler({ urls: customKickUrls, baseUrl: GITHUB_BASE_URL, onload: () => resolve(recKick), onerror: reject }).connect(recorder))
+                    ]);
                 } else {
-                    recSynth = new Tone.FMSynth({
-                        harmonicity: 3.01,
-                        modulationIndex: 14,
-                        envelope: { attack: 0.01, decay: 0.2 },
-                        modulationEnvelope: { attack: 0.01, decay: 0.5 }
-                    }).connect(recorder);
+                    recSynth = new Tone.FMSynth({ harmonicity: 3.01, modulationIndex: 14, envelope: { attack: 0.01, decay: 0.2 }, modulationEnvelope: { attack: 0.01, decay: 0.5 } }).connect(recorder);
                 }
-                playRecording();
+
+                if (!recKick) recKick = new Tone.MembraneSynth().connect(recorder);
+
+                recorder.start();
+                let accumulatedTime = 0;
+                recordedMelody.forEach(noteEvent => {
+                    const scheduledTime = accumulatedTime;
+                    if (noteEvent.type === 'melodic') {
+                        recSynth.triggerAttackRelease(noteEvent.note, noteEvent.duration, scheduledTime);
+                    } else if (noteEvent.type === 'percussion') {
+                        recKick.triggerAttackRelease(noteEvent.note, "8n", scheduledTime);
+                    }
+                    accumulatedTime += noteEvent.duration;
+                });
+                
+                setTimeout(async () => {
+                    const recording = await recorder.stop();
+                    const url = URL.createObjectURL(recording);
+                    const anchor = document.createElement("a");
+                    anchor.download = "bestem.wav";
+                    anchor.href = url;
+                    anchor.click();
+                    URL.revokeObjectURL(url);
+
+                    saveButton.disabled = false;
+                    saveButton.innerText = "🎵 Besteyi Kaydet";
+                    showModal("Besteniz 'bestem.wav' olarak indirildi!");
+                    
+                    recSynth.dispose();
+                    recKick.dispose();
+                    recorder.dispose();
+                }, accumulatedTime * 1000 + 500);
 
             } catch (error) {
                 console.error("Kayıt hatası:", error);
