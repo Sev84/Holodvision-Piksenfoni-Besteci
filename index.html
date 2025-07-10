@@ -74,6 +74,14 @@
 
         <!-- p5.js için Ana Tuval -->
         <main id="main" style="display: none;" class="w-full max-w-2xl mx-auto aspect-video border-2 border-pink-500 rounded-xl overflow-hidden mt-6 relative line-height-0"></main>
+        
+        <!-- Nota Eğitimi Bölümü -->
+        <div id="training-section" style="display: none;" class="w-full max-w-2xl mx-auto mt-6 bg-gray-800/50 backdrop-blur-sm border border-gray-700 rounded-xl p-4">
+            <h2 class="text-xl font-bold mb-3 text-white text-center">Nota Renk Pikseli Eğitimi</h2>
+            <div id="training-boxes" class="flex flex-wrap justify-center gap-3">
+                <!-- Renk kutucukları buraya dinamik olarak eklenecek -->
+            </div>
+        </div>
 
         <!-- QR Kod Okuyucu Alanı -->
         <div id="qr-reader-container" style="display: none;" class="text-center mt-6 p-4 bg-gray-800 rounded-xl w-full max-w-sm mx-auto">
@@ -237,6 +245,7 @@
         const imageSizeInfoEl = document.getElementById('image-size-info');
         const tempoDisplay = document.getElementById('tempo-display');
         const fileInput = document.getElementById('file-input');
+        const trainingSection = document.getElementById('training-section');
         
         // Modal elemanları
         const modal = document.getElementById('custom-modal');
@@ -254,6 +263,8 @@
             controlsEl.style.display = 'block';
             liveIndicatorEl.style.display = 'grid';
             imageSizeInfoEl.style.display = 'block';
+            trainingSection.style.display = 'block';
+            createTrainingSection();
             if (p5Instance) p5Instance.remove();
             p5Instance = new p5(p => sketch(p, data));
         }
@@ -466,7 +477,7 @@
         // --- Analiz ve Ses Fonksiyonları ---
 
         function analyzeAndPlay(p) {
-            if (!scanning || !p) return;
+            if (!scanning || !p || (synth && synth.disposed)) return;
 
             const centerX = scanX + pixelStep / 2;
             const centerY = scanY + pixelStep / 2;
@@ -506,6 +517,7 @@
         }
         
         function analyzeAndPlayManual(p, x, y) {
+            if (!synth || synth.disposed) return;
             const detectedColor = p.get(x + pixelStep / 2, y + pixelStep / 2);
             const match = findClosestColor(detectedColor[0], detectedColor[1], detectedColor[2]);
             
@@ -535,6 +547,7 @@
         }
 
         function analyzeCenterPixel(p) {
+            if (!synth || synth.disposed) return;
             const x = p.width / 2;
             const y = p.height / 2;
             const detectedColor = p.get(x, y);
@@ -739,6 +752,7 @@
             musicSheetContainer.style.display = 'none';
             liveIndicatorEl.style.display = 'none';
             imageSizeInfoEl.style.display = 'none';
+            trainingSection.style.display = 'none';
             initialControlsEl.style.display = 'flex';
             if (html5QrCode && html5QrCode.isScanning) {
                 stopQRScanner();
@@ -898,8 +912,8 @@
                     const customKickUrls = { "C1": "syh.wav", "C2": "byz.wav" };
 
                     [recSynth, recKick] = await Promise.all([
-                        new Promise((resolve, reject) => new Tone.Sampler({ urls: customUrls, baseUrl: GITHUB_BASE_URL, onload: () => resolve(recSynth), onerror: reject }).connect(recorder)),
-                        new Promise((resolve, reject) => new Tone.Sampler({ urls: customKickUrls, baseUrl: GITHUB_BASE_URL, onload: () => resolve(recKick), onerror: reject }).connect(recorder))
+                        new Promise((resolve, reject) => new Tone.Sampler({ urls: customUrls, baseUrl: GITHUB_BASE_URL, onload: resolve, onerror: reject }).connect(recorder)),
+                        new Promise((resolve, reject) => new Tone.Sampler({ urls: customKickUrls, baseUrl: GITHUB_BASE_URL, onload: resolve, onerror: reject }).connect(recorder))
                     ]);
                 } else {
                     recSynth = new Tone.FMSynth({ harmonicity: 3.01, modulationIndex: 14, envelope: { attack: 0.01, decay: 0.2 }, modulationEnvelope: { attack: 0.01, decay: 0.5 } }).connect(recorder);
@@ -1014,6 +1028,42 @@
                 }
             });
         }
+        
+        function speakText(text) {
+            if ('speechSynthesis' in window) {
+                // Mevcut konuşmaları iptal et
+                window.speechSynthesis.cancel();
+                const utterance = new SpeechSynthesisUtterance(text);
+                utterance.lang = 'tr-TR'; // Türkçe dilini ayarla
+                window.speechSynthesis.speak(utterance);
+            } else {
+                console.log("Tarayıcınız sesli okuma özelliğini desteklemiyor.");
+            }
+        }
+
+        function createTrainingSection() {
+            const container = document.getElementById('training-boxes');
+            container.innerHTML = ''; // Önceki kutuları temizle
+            noteMap.forEach(noteInfo => {
+                const box = document.createElement('div');
+                box.className = 'w-24 h-16 rounded-lg flex flex-col items-center justify-center cursor-pointer transform hover:scale-105 transition-transform';
+                box.style.backgroundColor = `rgb(${noteInfo.rgb[0]}, ${noteInfo.rgb[1]}, ${noteInfo.rgb[2]})`;
+                
+                const text = document.createElement('span');
+                text.className = 'font-bold text-black mix-blend-screen text-lg';
+                text.innerText = noteInfo.displayName;
+                box.appendChild(text);
+
+                box.addEventListener('click', () => {
+                    if (synth && !synth.disposed) {
+                        synth.triggerAttackRelease(noteInfo.note, '8n');
+                        speakText(noteInfo.displayName);
+                    }
+                });
+                container.appendChild(box);
+            });
+        }
+
         
         // Başlangıç temposunu ayarla
         Tone.Transport.bpm.value = 100;
