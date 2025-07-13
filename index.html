@@ -364,8 +364,9 @@
             const storedGeminiKey = localStorage.getItem("geminiApiKey");
             const storedElevenKey = localStorage.getItem("elevenLabsApiKey");
 
-            geminiApiKey = storedGeminiKey || "AIzaSyBeXmWsCfg_ruCHn9fCB9-CaUfe-T_UeFg";
-            elevenLabsApiKey = storedElevenKey || "sk_89f86145095cc4c407772084e105cb1f03541d229ac6606e";
+            // Düzeltme: Varsayılan anahtarları kaldır. Kullanıcı kendi anahtarını girmeli.
+            geminiApiKey = storedGeminiKey || "";
+            elevenLabsApiKey = storedElevenKey || "";
 
             if (storedGeminiKey) geminiApiKeyInput.value = storedGeminiKey;
             if (storedElevenKey) elevenLabsApiKeyInput.value = storedElevenKey;
@@ -1205,9 +1206,7 @@
         
         // --- ElevenLabs & Gemini Fonksiyonları ---
         async function speakText(text) {
-            // Düzeltme: Anahtarın geçerli olup olmadığını kontrol et (boş olmamalı ve 'sk_' ile başlamalı)
             if (!elevenLabsApiKey || !elevenLabsApiKey.startsWith("sk_")) {
-                // Anahtar geçersizse veya ayarlanmamışsa tarayıcının kendi sentezleyicisine geri dön
                 if ('speechSynthesis' in window) {
                     console.log("ElevenLabs API anahtarı geçersiz veya ayarlanmamış. Tarayıcı sentezleyici kullanılıyor.");
                     window.speechSynthesis.cancel();
@@ -1242,14 +1241,12 @@
                     })
                 });
 
-                // Düzeltme: Daha detaylı hata yönetimi
                 if (!response.ok) {
                     let errorMessage = `HTTP Hatası: ${response.status}`;
                     try {
                         const errorBody = await response.json();
                         errorMessage = errorBody.detail?.message || JSON.stringify(errorBody);
                     } catch (e) {
-                        // JSON parse edilemezse, text olarak oku
                         errorMessage = await response.text();
                     }
                     throw new Error(errorMessage);
@@ -1264,7 +1261,6 @@
             } catch (error) {
                 console.error("ElevenLabs Hatası:", error);
                 showModal(`Sesli okuma hatası: ${error.message}. Tarayıcı sentezleyici kullanılıyor.`);
-                // Hata durumunda tarayıcı sentezleyicisine geri dön
                 if ('speechSynthesis' in window) {
                     window.speechSynthesis.cancel();
                     const utterance = new SpeechSynthesisUtterance(text);
@@ -1285,7 +1281,8 @@
 
             showModal("Gemini düşünüyor... Tema için bir renk paleti oluşturuluyor.");
 
-            const API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${geminiApiKey}`;
+            // Düzeltme: 'gemini-pro' yerine 'gemini-2.0-flash' kullanılıyor.
+            const API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${geminiApiKey}`;
             const colorList = noteMap.map(n => n.name).join(', ');
             const promptText = `Bir müzik teması için bir renk dizisi oluştur. Tema: "${theme}". Sadece şu renklerden oluşan, virgülle ayrılmış bir liste döndür: ${colorList}. Örneğin: Kırmızı, Yeşil, Mavi, Sarı. Sadece renk listesini yaz, başka bir şey yazma.`;
 
@@ -1298,7 +1295,6 @@
 
                 const data = await response.json();
 
-                // Düzeltme: Daha detaylı hata yönetimi
                 if (!response.ok) {
                     const errorMessage = data.error?.message || "Gemini API ile iletişim kurulamadı.";
                     throw new Error(errorMessage);
