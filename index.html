@@ -364,7 +364,6 @@
             const storedGeminiKey = localStorage.getItem("geminiApiKey");
             const storedElevenKey = localStorage.getItem("elevenLabsApiKey");
 
-            // Düzeltme: Varsayılan anahtarları kaldır. Kullanıcı kendi anahtarını girmeli.
             geminiApiKey = storedGeminiKey || "";
             elevenLabsApiKey = storedElevenKey || "";
 
@@ -597,12 +596,18 @@
         // --- Analiz ve Ses Fonksiyonları ---
 
         function analyzeAndPlay(p) {
-            if (!scanning || !p || (synth && synth.disposed)) return;
+            // Düzeltme: Tarama döngüsünün durmasını önlemek için kickSynth'i kontrol et
+            if (!scanning || !p || !synth || synth.disposed || !kickSynth || kickSynth.disposed) return;
+
+            // Taramanın bittiğini kontrol et
+            if (scanY >= p.height) {
+                scanning = false; // Döngünün bir sonraki adımda durması için bayrağı ayarla
+                return;
+            }
 
             const centerX = scanX + pixelStep / 2;
             const centerY = scanY + pixelStep / 2;
-            if (centerX >= p.width || centerY >= p.height) return;
-
+            
             const detectedColor = p.get(centerX, centerY);
             const match = findClosestColor(detectedColor[0], detectedColor[1], detectedColor[2]);
             
@@ -623,16 +628,13 @@
             }
             recordedMelody.push({ type: 'rest', duration: NOTE_REST_DURATION });
             
+            // Bir sonraki kare için pozisyonu güncelle
             scanX += scanDirection * pixelStep;
             if (scanX >= p.width || scanX < 0) {
                 scanDirection *= -1;
-                scanX += scanDirection * pixelStep;
+                scanX += scanDirection * pixelStep; // Tersine döndükten sonra pozisyonu düzelt
                 scanY += pixelStep;
                 updateMusicSheet('\n'); 
-            }
-
-            if (scanY >= p.height) {
-                scanning = false; 
             }
         }
         
@@ -654,7 +656,7 @@
                 const brightness = getBrightness(detectedColor[0], detectedColor[1], detectedColor[2]);
                 const percussion = brightnessToPercussion(brightness);
                 const kickNote = document.getElementById('instrument-choice').value === 'Custom' ? (brightness < 128 ? "C1" : "C2") : "C1";
-                kickSynth.triggerAttackRelease(kickNote, "8n");
+                if(kickSynth && !kickSynth.disposed) kickSynth.triggerAttackRelease(kickNote, "8n");
                 recordedMelody.push({ type: 'percussion', note: kickNote, duration: Tone.Time(percussion.duration).toSeconds() });
                 updateMusicSheet(`V${percussion.beat}`);
                 updateLiveIndicator(detectedColor, null, percussion);
@@ -683,7 +685,7 @@
                 const brightness = getBrightness(detectedColor[0], detectedColor[1], detectedColor[2]);
                 const percussion = brightnessToPercussion(brightness);
                 const kickNote = document.getElementById('instrument-choice').value === 'Custom' ? (brightness < 128 ? "C1" : "C2") : "C1";
-                if (lastPlayedNote !== 'kick') {
+                if (lastPlayedNote !== 'kick' && kickSynth && !kickSynth.disposed) {
                     kickSynth.triggerAttackRelease(kickNote, "8n");
                     lastPlayedNote = 'kick';
                 }
@@ -938,54 +940,75 @@
         
         document.getElementById('back-button').addEventListener('click', resetToHome);
 
+        // Düzeltme: Otomatik tarama mantığı basitleştirildi ve düzeltildi
         autoScanButton.addEventListener('click', async () => {
             if (Tone.context.state !== 'running') await Tone.start();
             controlMode = 'auto';
             manualControlsEl.style.display = 'none';
-            
+
             if (scanning) {
-                scanning = false; // Kullanıcı durdurdu
-                autoScanButton.innerText = "Otomatik Bestelet";
-                if (transportLoop) transportLoop.stop(0);
-                Tone.Transport.stop();
-                if (recordedMelody.length > 0) {
-                    saveButton.style.display = 'inline-block';
-                }
+                // Tarama zaten çalışıyorsa, durdurmak için sadece bayrağı ayarla
+                scanning = false;
             } else {
+                // Yeni bir tarama başlat
                 if (p5Instance) {
                     scanX = 0;
                     scanY = 0;
                     scanDirection = 1;
                     scanning = true;
-                    recordedMelody = []; 
-                    musicSheet.innerText = ''; 
+                    recordedMelody = [];
+                    musicSheet.innerText = '';
                     autoScanButton.innerText = "Durdur";
                     saveButton.style.display = 'none';
-                    
+
+                    // Önceki döngüyü temizle
+                    if (transportLoop) {
+                        transportLoop.dispose();
+                    }
                     Tone.Transport.cancel();
-                    
+
+                    // Yeni döngüyü oluştur ve başlat
                     transportLoop = new Tone.Loop((time) => {
                         if (!scanning) {
-                            transportLoop.stop(0);
+                            // Döngü durduğunda temizlik yap
+                            if (transportLoop) {
+                                transportLoop.stop(0);
+                                transportLoop.dispose();
+                                transportLoop = null;
+                            }
                             Tone.Transport.stop();
-                            autoScanButton.innerText = "Tekrar Tara";
+                            
+                            // Taramanın kullanıcı tarafından mı yoksa bittiği için mi durduğuna göre düğme metnini ayarla
+                            autoScanButton.innerText = (scanY >= p5Instance.height) ? "Tekrar Tara" : "Otomatik Bestelet";
+
                             if (recordedMelody.length > 0) {
                                 saveButton.style.display = 'inline-block';
                             }
                             return;
                         }
+                        
+                        // Mevcut tik için taramayı gerçekleştir
                         analyzeAndPlay(p5Instance);
+
                     }, "4n").start(0);
-                    
-                    Tone.Transport.start();
+
+                    if (Tone.Transport.state !== 'started') {
+                        Tone.Transport.start();
+                    }
                 }
             }
         });
         
         manualScanButton.addEventListener('click', () => {
             scanning = false;
-            Tone.Transport.stop();
-            Tone.Transport.cancel();
+            if (Tone.Transport.state === 'started') {
+                Tone.Transport.stop();
+                Tone.Transport.cancel();
+            }
+            if (transportLoop) {
+                transportLoop.dispose();
+                transportLoop = null;
+            }
             controlMode = 'manual';
             manualControlsEl.style.display = 'flex';
             autoScanButton.innerText = "Otomatik Bestelet";
@@ -1281,7 +1304,6 @@
 
             showModal("Gemini düşünüyor... Tema için bir renk paleti oluşturuluyor.");
 
-            // Düzeltme: 'gemini-pro' yerine 'gemini-2.0-flash' kullanılıyor.
             const API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${geminiApiKey}`;
             const colorList = noteMap.map(n => n.name).join(', ');
             const promptText = `Bir müzik teması için bir renk dizisi oluştur. Tema: "${theme}". Sadece şu renklerden oluşan, virgülle ayrılmış bir liste döndür: ${colorList}. Örneğin: Kırmızı, Yeşil, Mavi, Sarı. Sadece renk listesini yaz, başka bir şey yazma.`;
